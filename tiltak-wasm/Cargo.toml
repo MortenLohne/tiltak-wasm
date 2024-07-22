@@ -1,0 +1,18 @@
+[package]
+name = "tiltak-wasm"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "tiltak_wasm"
+path = "src/lib.rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+board-game-traits = "0.4.0"
+getrandom = { version = "0.2.15", features = ["js"] }
+pgn-traits = "0.5.0"
+tiltak = { git = "https://github.com/MortenLohne/tiltak" }
+tokio = { version = "1.38.1", default-features=false, features = ["sync"] }
+wasm-bindgen = "0.2.92"
+wasm-bindgen-futures = "0.4.42"
