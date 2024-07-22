@@ -3,6 +3,9 @@ name = "tiltak-wasm"
 version = "0.1.0"
 edition = "2021"
 
+[profile.release]
+debug = true
+
 [lib]
 name = "tiltak_wasm"
 path = "src/lib.rs"
@@ -10,9 +13,12 @@ crate-type = ["cdylib"]
 
 [dependencies]
 board-game-traits = "0.4.0"
+console_error_panic_hook = "0.1.7"
+futures = { version = "0.3", default-features = false, features = ["async-await"] }
 getrandom = { version = "0.2.15", features = ["js"] }
 pgn-traits = "0.5.0"
 tiltak = { git = "https://github.com/MortenLohne/tiltak" }
-tokio = { version = "1.38.1", default-features=false, features = ["sync"] }
+tokio = { version = "1.38.1", default-features=false, features = ["sync", "rt", "time"] }
 wasm-bindgen = "0.2.92"
 wasm-bindgen-futures = "0.4.42"
+web-sys = { version = "0.3.69", features = ["Window", "WorkerGlobalScope"] }

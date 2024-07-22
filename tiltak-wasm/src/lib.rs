@@ -1,17 +1,17 @@
-use board_game_traits::{Color, Position as PositionTrait};
+use board_game_traits::Position as PositionTrait;
+use futures::try_join;
 use pgn_traits::PgnPosition;
 use std::env;
 use std::error::Error;
 use std::fmt::Display;
 use std::str::FromStr;
-use std::time::{Duration, Instant};
 use tiltak::position::{Komi, Position};
 use tokio::sync::mpsc::error::TryRecvError;
-use wasm_bindgen_futures::js_sys::{self, Array};
+use wasm_bindgen_futures::js_sys;
 
 use crate::search::MctsSetting;
 use std::any::Any;
-use tiltak::search::{self, MonteCarloTree};
+use tiltak::search;
 use tokio::sync::mpsc;
 
 use wasm_bindgen::prelude::*;
@@ -53,34 +53,41 @@ impl From<mpsc::error::SendError<String>> for TeiError {
     }
 }
 
-pub fn start_engine(
-    output_callback: js_sys::Function,
-) -> (js_sys::Promise, mpsc::UnboundedSender<String>) {
+#[wasm_bindgen]
+pub fn start_engine(output_callback: js_sys::Function) -> JsValue {
+    console_error_panic_hook::set_once();
     let (input_sender, input_recv) = mpsc::unbounded_channel();
     let (output_sender, mut output_recv) = mpsc::unbounded_channel();
-    let send_output_promise = wasm_bindgen_futures::future_to_promise(async move {
-        loop {
-            let val: String = output_recv.recv().await.unwrap();
-            let args = js_sys::Array::new();
-            args.push(&val.into());
-            output_callback.apply(&JsValue::NULL, &args).unwrap();
-        }
-    });
-    let tei_promise =
-        wasm_bindgen_futures::future_to_promise(tei_jsvalue(input_recv, output_sender));
-    let promises = js_sys::Array::new();
-    promises.push(&send_output_promise);
-    promises.push(&tei_promise);
-    (js_sys::Promise::all(&promises), input_sender)
+    let future = async {
+        let send_output = async move {
+            loop {
+                let val: String = output_recv.recv().await.unwrap();
+                let args = js_sys::Array::new();
+                args.push(&val.into());
+                output_callback.apply(&JsValue::NULL, &args).unwrap();
+            }
+            // Unreachable return statement required to assign a type to the async block
+            #[allow(unreachable_code)]
+            Ok::<(), JsValue>(())
+        };
+        let tei_future = tei_jsvalue(input_recv, output_sender);
+        try_join!(send_output, tei_future).map(|_| JsValue::undefined())
+    };
+    let receive_input: Closure<dyn Fn(String)> =
+        Closure::new(move |input| input_sender.send(input).unwrap());
+    let js_closure = receive_input.as_ref().clone();
+    receive_input.forget();
+    // Pass the future to the JS runtime
+    let _ = wasm_bindgen_futures::future_to_promise(future);
+    js_closure
 }
 
 pub async fn tei_jsvalue(
     input: mpsc::UnboundedReceiver<String>,
     output: mpsc::UnboundedSender<String>,
-) -> Result<JsValue, JsValue> {
+) -> Result<(), JsValue> {
     tei(input, output)
         .await
-        .map(|_| JsValue::UNDEFINED)
         .map_err(|err| JsValue::from_str(&err.to_string()))
 }
 
@@ -104,6 +111,7 @@ pub async fn tei(
 
     loop {
         let line = input.recv().await.unwrap();
+        output.send(format!("Received line \"{}\"", line))?;
         let mut words = line.split_whitespace();
         match words.next().unwrap() {
             "quit" => break Ok(()),
@@ -209,6 +217,7 @@ pub async fn tei(
                     ))
                 }
             },
+            "stop" => (),
             s => return Err(TeiError::InvalidInput(format!("Unknown command \"{}\"", s))),
         }
     }
@@ -261,28 +270,32 @@ async fn parse_go_string<const S: usize>(
         MctsSetting::default().add_rollout_depth(200)
     } else {
         MctsSetting::default()
-    };
+    }
+    .mem_usage(2 * 1024 * 1024 * 1024);
 
     match words.next() {
         Some("movetime") => {
             let msecs = words.next().unwrap();
-            let movetime = Duration::from_millis(u64::from_str(msecs).unwrap());
-            let start_time = Instant::now();
+            let movetime = u64::from_str(msecs).unwrap();
+            let start_time = js_sys::Date::now();
             let mut tree = search::MonteCarloTree::with_settings(position.clone(), mcts_settings);
 
             for i in 0.. {
                 let nodes_to_search = (200.0 * f64::powf(1.26, i as f64)) as u64;
                 let mut oom = false;
                 for _ in 0..nodes_to_search {
-                    match input.try_recv() {
-                        Ok(line) => match line.as_str() {
-                            "stop" => break,
-                            "quit" => break,
-                            "isready" => output.send("readyok".to_string())?,
-                            _ => return Err(TeiError::InvalidInput(line)),
-                        },
-                        Err(TryRecvError::Empty) => (),
-                        Err(TryRecvError::Disconnected) => return Err(TeiError::NoInput),
+                    if tree.visits() % 10000 == 0 {
+                        yield_().await;
+                        match input.try_recv() {
+                            Ok(line) => match line.as_str() {
+                                "stop" => return Ok(()),
+                                "quit" => return Ok(()),
+                                "isready" => output.send("readyok".to_string())?,
+                                _ => return Err(TeiError::InvalidInput(line)),
+                            },
+                            Err(TryRecvError::Empty) => (),
+                            Err(TryRecvError::Disconnected) => return Err(TeiError::NoInput),
+                        }
                     }
                     if tree.select().is_none() {
                         eprintln!("Warning: Search stopped early due to OOM");
@@ -292,83 +305,49 @@ async fn parse_go_string<const S: usize>(
                 }
                 let (best_move, best_score) = tree.best_move();
                 let pv: Vec<_> = tree.pv().collect();
+                let elapsed = js_sys::Date::now() - start_time;
                 output.send(format!(
                     "info depth {} seldepth {} nodes {} score cp {} time {} nps {:.0} pv {}",
                     ((tree.visits() as f64 / 10.0).log2()) as u64,
                     pv.len(),
                     tree.visits(),
                     (best_score * 200.0 - 100.0) as i64,
-                    start_time.elapsed().as_millis(),
-                    tree.visits() as f32 / start_time.elapsed().as_secs_f32(),
+                    elapsed as u64,
+                    tree.visits() as f32 * 1000.0 / elapsed as f32,
                     pv.iter()
                         .map(|mv| position.move_to_san(mv))
                         .collect::<Vec<String>>()
                         .join(" ")
                 ))?;
-                if oom || start_time.elapsed().as_secs_f64() > movetime.as_secs_f64() * 0.7 {
+                if oom || elapsed > movetime as f64 * 0.7 {
                     output.send(format!("bestmove {}", position.move_to_san(&best_move)))?;
                     break;
                 }
             }
             Ok(())
         }
-        Some("wtime") | Some("btime") | Some("winc") | Some("binc") => {
-            let parse_time = |s: Option<&str>| {
-                Duration::from_millis(
-                    s.and_then(|w| w.parse().ok())
-                        .unwrap_or_else(|| panic!("Incorrect go command {}", line)),
-                )
-            };
-            let mut words = line.split_whitespace().skip(1).peekable();
-            let mut white_time = Duration::default();
-            let mut white_inc = Duration::default();
-            let mut black_time = Duration::default();
-            let mut black_inc = Duration::default();
-
-            while let Some(word) = words.next() {
-                match word {
-                    "wtime" => white_time = parse_time(words.next()),
-                    "winc" => white_inc = parse_time(words.next()),
-                    "btime" => black_time = parse_time(words.next()),
-                    "binc" => black_inc = parse_time(words.next()),
-                    _ => (),
-                }
-            }
-
-            let max_time = match position.side_to_move() {
-                Color::White => white_time / 5 + white_inc / 2,
-                Color::Black => black_time / 5 + black_inc / 2,
-            };
-
-            let start_time = Instant::now();
-
-            let mut tree = MonteCarloTree::with_settings(position.clone(), mcts_settings);
-            tree.search_for_time(max_time, |tree| {
-                let best_score = tree.best_move().1;
-                let pv: Vec<_> = tree.pv().collect();
-                output
-                    .send(format!(
-                        "info depth {} seldepth {} nodes {} score cp {} time {} nps {:.0} pv {}",
-                        ((tree.visits() as f64 / 10.0).log2()) as u64,
-                        pv.len(),
-                        tree.visits(),
-                        (best_score * 200.0 - 100.0) as i64,
-                        start_time.elapsed().as_millis(),
-                        tree.visits() as f32 / start_time.elapsed().as_secs_f32(),
-                        pv.iter()
-                            .map(|mv| position.move_to_san(mv))
-                            .collect::<Vec<String>>()
-                            .join(" ")
-                    ))
-                    .unwrap();
-            });
-            let best_move = tree.best_move().0;
-
-            output.send(format!("bestmove {}", position.move_to_san(&best_move)))?;
-            Ok(())
-        }
         Some(_) | None => {
             panic!("Invalid go command \"{}\"", line);
         }
     }
+}
+
+/// Yield to other tasks
+async fn yield_() {
+    worker_timer(1).await.unwrap();
+}
+
+/// worker timer, which setTimeout is created by WorkerGlobalScope
+/// This is necessary because worker has no access to windows.
+pub async fn worker_timer(ms: i32) -> Result<(), JsValue> {
+    let promise = js_sys::Promise::new(&mut |yes, _| {
+        let global = js_sys::global();
+        let scope = global.dyn_into::<web_sys::WorkerGlobalScope>().unwrap();
+        scope
+            .set_timeout_with_callback_and_timeout_and_arguments_0(&yes, ms)
+            .unwrap();
+    });
+    let js_fut = wasm_bindgen_futures::JsFuture::from(promise);
+    js_fut.await?;
+    Ok(())
 }

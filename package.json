@@ -18,10 +18,10 @@
     "tiltak-wasm": "file:./tiltak-wasm/wasm-build"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
     "build:wasm": "cd tiltak-wasm && wasm-pack build --target web --out-dir ./wasm-build",
-    "test": "react-scripts test",
+    "test": "react-app-rewired test",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -41,5 +41,10 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "customize-cra": "^1.0.0",
+    "react-app-rewired": "^2.2.1",
+    "worker-loader": "^3.0.8"
   }
 }

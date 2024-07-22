@@ -1,21 +1,16 @@
 /* eslint-disable no-restricted-globals */
 
-import init, { Data } from 'tiltak-wasm';
+import init, { start_engine } from 'tiltak-wasm';
 
 init().then(() => {
     const startTime = performance.now()
-    const data = new Data();
+    let callback = start_engine(output => { console.log(`Received ${output} from engine`); postMessage(output) });
     const endTime = performance.now()
-    console.log(`Loaded pokemon data in ${endTime - startTime} milliseconds`)
+    console.log(`Started engine in ${endTime - startTime} milliseconds`)
 
-    const defaultResult = data.compute("", "", []);
-    postMessage(JSON.stringify(defaultResult))
-
-    self.onmessage = function(e) {
-        const payload = JSON.parse(e.data)
-        // console.log(`Computing with "${payload.type}" and "${payload.phrase}", from "${payload}`)
-        const probabilities = data.compute(payload.type, payload.phrase, []);
-        postMessage(JSON.stringify(
-            probabilities))
+    self.onmessage = e => {
+        const payload = e.data;
+        console.log(`Sending "${payload}" to engine`);
+        callback(payload);
     };
 });
