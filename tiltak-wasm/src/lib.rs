@@ -271,7 +271,7 @@ async fn parse_go_string<const S: usize>(
     } else {
         MctsSetting::default()
     }
-    .mem_usage(2 * 1024 * 1024 * 1024);
+    .max_arena_size();
 
     match words.next() {
         Some("movetime") => {
@@ -281,7 +281,7 @@ async fn parse_go_string<const S: usize>(
             let mut tree = search::MonteCarloTree::with_settings(position.clone(), mcts_settings);
 
             for i in 0.. {
-                let nodes_to_search = (200.0 * f64::powf(1.26, i as f64)) as u64;
+                let nodes_to_search = (1000.0 * f64::powf(1.1, i as f64)) as u64;
                 let mut oom = false;
                 for _ in 0..nodes_to_search {
                     if tree.visits() % 10000 == 0 {
@@ -308,7 +308,7 @@ async fn parse_go_string<const S: usize>(
                 let elapsed = js_sys::Date::now() - start_time;
                 output.send(format!(
                     "info depth {} seldepth {} nodes {} score cp {} time {} nps {:.0} pv {}",
-                    ((tree.visits() as f64 / 10.0).log2()) as u64,
+                    ((tree.visits() as f64 / 100.0).log2()) as u64,
                     pv.len(),
                     tree.visits(),
                     (best_score * 200.0 - 100.0) as i64,

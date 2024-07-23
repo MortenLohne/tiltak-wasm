@@ -414,9 +414,9 @@ checksum = "719b953e2095829ee67db738b3bfa9fa368c94900df327b3f07fe6e794d2fe1f"
 
 [[package]]
 name = "syn"
-version = "2.0.71"
+version = "2.0.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b146dcf730474b4bcd16c311627b31ede9ab149045db4d6088b3becaea046462"
+checksum = "dc4b9b9bf2add8093d3f2c0204471e951b2285580335de42f9d2534f3ae7a8af"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -440,7 +440,7 @@ dependencies = [
 [[package]]
 name = "tiltak"
 version = "0.1.0"
-source = "git+https://github.com/MortenLohne/tiltak#da2a8fc12a4f23cd136ff99b6443c2fcfb04a278"
+source = "git+https://github.com/MortenLohne/tiltak?branch=fix-arena#6b9c610b7a0f6cc92e9e6950bf576c270fdb74cc"
 dependencies = [
  "arrayvec",
  "board-game-traits",
