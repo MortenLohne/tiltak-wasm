@@ -4,7 +4,11 @@ import init, { start_engine } from 'tiltak-wasm';
 
 init().then(() => {
     const startTime = performance.now()
-    let callback = start_engine(output => { console.log(`Received ${output} from engine`); postMessage(output) });
+    let callback = start_engine(output => {
+        console.log(`Received ${output} from engine`);
+        postMessage(output);
+    });
+
     const endTime = performance.now()
     console.log(`Started engine in ${endTime - startTime} milliseconds`)
 

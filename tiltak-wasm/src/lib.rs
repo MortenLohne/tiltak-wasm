@@ -52,7 +52,11 @@ impl From<mpsc::error::SendError<String>> for TeiError {
     }
 }
 
-#[wasm_bindgen]
+/// Start the engine, which will run asynschronously in the background until it crashes
+///
+/// @param {function(string): void} output_callback - Callback that receives tei output line by line
+/// @return {function(string): void} - Send one line of tei input to the engine
+#[wasm_bindgen(skip_jsdoc)]
 pub fn start_engine(output_callback: js_sys::Function) -> JsValue {
     console_error_panic_hook::set_once();
     let (input_sender, input_recv) = mpsc::unbounded_channel();
