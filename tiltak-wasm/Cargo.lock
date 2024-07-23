@@ -361,7 +361,7 @@ dependencies = [
 [[package]]
 name = "tiltak"
 version = "0.1.0"
-source = "git+https://github.com/MortenLohne/tiltak?branch=fix-arena#71236a2cfc5b34a91c6a1b6ff8581225a56b56dc"
+source = "git+https://github.com/MortenLohne/tiltak#1f1ca8934e907724594d801dc178a94942d9d1f5"
 dependencies = [
  "arrayvec",
  "board-game-traits",
@@ -377,7 +377,7 @@ dependencies = [
 
 [[package]]
 name = "tiltak-wasm"
-version = "0.1.0"
+version = "0.0.2"
 dependencies = [
  "board-game-traits",
  "console_error_panic_hook",
@@ -392,9 +392,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.38.1"
+version = "1.39.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb2caba9f80616f438e09748d5acda951967e1ea58508ef53d9c6402485a46df"
+checksum = "d040ac2b29ab03b09d4129c2f5bbd012a3ac2f79d38ff506a4bf8dd34b0eac8a"
 dependencies = [
  "backtrace",
  "pin-project-lite",
