@@ -274,9 +274,12 @@ async fn parse_go_string<const S: usize>(
     .max_arena_size();
 
     match words.next() {
-        Some("movetime") => {
-            let msecs = words.next().unwrap();
-            let movetime = u64::from_str(msecs).unwrap();
+        Some("movetime") | Some("infinite") | None => {
+            let movetime = if let Some(msecs) = words.next() {
+                u64::from_str(msecs).unwrap()
+            } else {
+                u64::MAX
+            };
             let start_time = js_sys::Date::now();
             let mut tree = search::MonteCarloTree::with_settings(position.clone(), mcts_settings);
 
@@ -329,7 +332,7 @@ async fn parse_go_string<const S: usize>(
             }
             Ok(())
         }
-        Some(_) | None => {
+        Some(_) => {
             panic!("Invalid go command \"{}\"", line);
         }
     }

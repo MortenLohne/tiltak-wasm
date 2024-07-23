@@ -83,7 +83,7 @@ function App() {
     let message = `position tps ${inputValue.trim()}`;
     console.log(`Sending ${message}`);
     worker.postMessage(message);
-    worker.postMessage("go movetime 1000000");
+    worker.postMessage("go infinite");
   }
 
   const goNextMove = () => {
@@ -106,7 +106,7 @@ function App() {
     let message = `position tps ${newInput}`;
     console.log(`Sending ${message}`);
     worker.postMessage(message);
-    worker.postMessage("go movetime 1000000");
+    worker.postMessage("go infinite");
   }
 
   const resetTps = () => {
@@ -127,7 +127,7 @@ function App() {
     let message = `position tps ${newInput}`;
     console.log(`Sending ${message}`);
     worker.postMessage(message);
-    worker.postMessage("go movetime 1000000");
+    worker.postMessage("go infinite");
   }
 
   const undoMove = () => {
@@ -148,7 +148,7 @@ function App() {
     let message = `position tps ${newInput}`;
     console.log(`Sending ${message}`);
     worker.postMessage(message);
-    worker.postMessage("go movetime 1000000");
+    worker.postMessage("go infinite");
   }
 
   return (
