@@ -440,7 +440,7 @@ dependencies = [
 [[package]]
 name = "tiltak"
 version = "0.1.0"
-source = "git+https://github.com/MortenLohne/tiltak?branch=fix-arena#6b9c610b7a0f6cc92e9e6950bf576c270fdb74cc"
+source = "git+https://github.com/MortenLohne/tiltak?branch=fix-arena#71236a2cfc5b34a91c6a1b6ff8581225a56b56dc"
 dependencies = [
  "arrayvec",
  "board-game-traits",

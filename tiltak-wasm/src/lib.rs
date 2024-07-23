@@ -282,13 +282,16 @@ async fn parse_go_string<const S: usize>(
 
             for i in 0.. {
                 let nodes_to_search = (1000.0 * f64::powf(1.1, i as f64)) as u64;
-                let mut oom = false;
+                let mut exit = false;
                 for _ in 0..nodes_to_search {
                     if tree.visits() % 10000 == 0 {
                         yield_().await;
                         match input.try_recv() {
                             Ok(line) => match line.as_str() {
-                                "stop" => return Ok(()),
+                                "stop" => {
+                                    exit = true;
+                                    break;
+                                }
                                 "quit" => return Ok(()),
                                 "isready" => output.send("readyok".to_string())?,
                                 _ => return Err(TeiError::InvalidInput(line)),
@@ -299,7 +302,7 @@ async fn parse_go_string<const S: usize>(
                     }
                     if tree.select().is_none() {
                         eprintln!("Warning: Search stopped early due to OOM");
-                        oom = true;
+                        exit = true;
                         break;
                     };
                 }
@@ -319,7 +322,7 @@ async fn parse_go_string<const S: usize>(
                         .collect::<Vec<String>>()
                         .join(" ")
                 ))?;
-                if oom || elapsed > movetime as f64 * 0.7 {
+                if exit || elapsed > movetime as f64 * 0.7 {
                     output.send(format!("bestmove {}", position.move_to_san(&best_move)))?;
                     break;
                 }
