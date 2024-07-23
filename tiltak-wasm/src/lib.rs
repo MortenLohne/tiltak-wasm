@@ -1,5 +1,4 @@
 use board_game_traits::Position as PositionTrait;
-use futures::try_join;
 use pgn_traits::PgnPosition;
 use std::env;
 use std::error::Error;
@@ -57,52 +56,47 @@ impl From<mpsc::error::SendError<String>> for TeiError {
 pub fn start_engine(output_callback: js_sys::Function) -> JsValue {
     console_error_panic_hook::set_once();
     let (input_sender, input_recv) = mpsc::unbounded_channel();
-    let (output_sender, mut output_recv) = mpsc::unbounded_channel();
-    let future = async {
-        let send_output = async move {
-            loop {
-                let val: String = output_recv.recv().await.unwrap();
-                let args = js_sys::Array::new();
-                args.push(&val.into());
-                output_callback.apply(&JsValue::NULL, &args).unwrap();
-            }
-            // Unreachable return statement required to assign a type to the async block
-            #[allow(unreachable_code)]
-            Ok::<(), JsValue>(())
-        };
-        let tei_future = tei_jsvalue(input_recv, output_sender);
-        try_join!(send_output, tei_future).map(|_| JsValue::undefined())
+
+    let rust_output_callback = move |message: &str| {
+        let args = js_sys::Array::new();
+        args.push(&message.into());
+        output_callback.apply(&JsValue::NULL, &args).unwrap();
     };
+
     let receive_input: Closure<dyn Fn(String)> =
         Closure::new(move |input| input_sender.send(input).unwrap());
     let js_closure = receive_input.as_ref().clone();
     receive_input.forget();
     // Pass the future to the JS runtime
-    let _ = wasm_bindgen_futures::future_to_promise(future);
+    let _ = wasm_bindgen_futures::future_to_promise(tei_jsvalue(input_recv, rust_output_callback));
     js_closure
 }
 
-pub async fn tei_jsvalue(
+pub async fn tei_jsvalue<F>(
     input: mpsc::UnboundedReceiver<String>,
-    output: mpsc::UnboundedSender<String>,
-) -> Result<(), JsValue> {
+    output: F,
+) -> Result<JsValue, JsValue>
+where
+    F: Fn(&str),
+{
     tei(input, output)
         .await
+        .map(|()| JsValue::UNDEFINED)
         .map_err(|err| JsValue::from_str(&err.to_string()))
 }
 
-pub async fn tei(
-    mut input: mpsc::UnboundedReceiver<String>,
-    output: mpsc::UnboundedSender<String>,
-) -> Result<(), TeiError> {
+pub async fn tei<F>(mut input: mpsc::UnboundedReceiver<String>, output: F) -> Result<(), TeiError>
+where
+    F: Fn(&str),
+{
     let is_slatebot = env::args().any(|arg| arg == "--slatebot");
 
     while input.recv().await.unwrap() != "tei" {}
 
-    output.send("id name Tiltak".to_string())?;
-    output.send("id author Morten Lohne".to_string())?;
-    output.send("option name HalfKomi type spin default 0 min -10 max 10".to_string())?;
-    output.send("teiok".to_string())?;
+    output("id name Tiltak");
+    output("id author Morten Lohne");
+    output("option name HalfKomi type spin default 0 min -10 max 10");
+    output("teiok");
 
     // Position stored in a `dyn Any` variable, because it can be any size
     let mut position: Option<Box<dyn Any>> = None;
@@ -111,11 +105,11 @@ pub async fn tei(
 
     loop {
         let line = input.recv().await.unwrap();
-        output.send(format!("Received line \"{}\"", line))?;
+        output(&format!("Received line \"{}\"", line));
         let mut words = line.split_whitespace();
         match words.next().unwrap() {
             "quit" => break Ok(()),
-            "isready" => output.send("readyok".to_string())?,
+            "isready" => output("readyok"),
             "setoption" => {
                 if [
                     words.next().unwrap_or_default(),
@@ -176,7 +170,7 @@ pub async fn tei(
             }
             "go" => match size {
                 Some(4) => {
-                    parse_go_string::<4>(
+                    parse_go_string::<4, F>(
                         &mut input,
                         &output,
                         &line,
@@ -186,7 +180,7 @@ pub async fn tei(
                     .await?
                 }
                 Some(5) => {
-                    parse_go_string::<5>(
+                    parse_go_string::<5, F>(
                         &mut input,
                         &output,
                         &line,
@@ -196,7 +190,7 @@ pub async fn tei(
                     .await?
                 }
                 Some(6) => {
-                    parse_go_string::<6>(
+                    parse_go_string::<6, F>(
                         &mut input,
                         &output,
                         &line,
@@ -256,13 +250,16 @@ fn parse_position_string<const S: usize>(line: &str, komi: Komi) -> Result<Posit
     Ok(position)
 }
 
-async fn parse_go_string<const S: usize>(
+async fn parse_go_string<const S: usize, F>(
     input: &mut mpsc::UnboundedReceiver<String>,
-    output: &mpsc::UnboundedSender<String>,
+    output: &F,
     line: &str,
     position: &Position<S>,
     is_slatebot: bool,
-) -> Result<(), TeiError> {
+) -> Result<(), TeiError>
+where
+    F: Fn(&str),
+{
     let mut words = line.split_whitespace();
     words.next(); // go
 
@@ -287,7 +284,8 @@ async fn parse_go_string<const S: usize>(
                 let nodes_to_search = (1000.0 * f64::powf(1.1, i as f64)) as u64;
                 let mut exit = false;
                 for _ in 0..nodes_to_search {
-                    if tree.visits() % 10000 == 0 {
+                    // Only yield to the Javascript event loop every 10k visits, since it's rather slow (5-10ms)
+                    if tree.visits() % 10_000 == 0 {
                         yield_().await;
                         match input.try_recv() {
                             Ok(line) => match line.as_str() {
@@ -296,7 +294,7 @@ async fn parse_go_string<const S: usize>(
                                     break;
                                 }
                                 "quit" => return Ok(()),
-                                "isready" => output.send("readyok".to_string())?,
+                                "isready" => output("readyok"),
                                 _ => return Err(TeiError::InvalidInput(line)),
                             },
                             Err(TryRecvError::Empty) => (),
@@ -312,7 +310,7 @@ async fn parse_go_string<const S: usize>(
                 let (best_move, best_score) = tree.best_move();
                 let pv: Vec<_> = tree.pv().collect();
                 let elapsed = js_sys::Date::now() - start_time;
-                output.send(format!(
+                output(&format!(
                     "info depth {} seldepth {} nodes {} score cp {} time {} nps {:.0} pv {}",
                     ((tree.visits() as f64 / 100.0).log2()) as u64,
                     pv.len(),
@@ -324,9 +322,9 @@ async fn parse_go_string<const S: usize>(
                         .map(|mv| position.move_to_san(mv))
                         .collect::<Vec<String>>()
                         .join(" ")
-                ))?;
+                ));
                 if exit || elapsed > movetime as f64 * 0.7 {
-                    output.send(format!("bestmove {}", position.move_to_san(&best_move)))?;
+                    output(&format!("bestmove {}", position.move_to_san(&best_move)));
                     break;
                 }
             }
@@ -340,7 +338,7 @@ async fn parse_go_string<const S: usize>(
 
 /// Yield to other tasks
 async fn yield_() {
-    worker_timer(1).await.unwrap();
+    worker_timer(0).await.unwrap();
 }
 
 /// worker timer, which setTimeout is created by WorkerGlobalScope
