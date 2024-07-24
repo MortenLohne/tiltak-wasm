@@ -64,7 +64,12 @@ pub fn start_engine(output_callback: js_sys::Function) -> JsValue {
     let rust_output_callback = move |message: &str| {
         let args = js_sys::Array::new();
         args.push(&message.into());
-        output_callback.apply(&JsValue::NULL, &args).unwrap();
+        if let Err(err) = output_callback.apply(&JsValue::NULL, &args) {
+            web_sys::console::error_2(
+                &"Tiltak: caught exception from Javascript callback: ".into(),
+                &err,
+            )
+        }
     };
 
     let receive_input: Closure<dyn Fn(String)> =
