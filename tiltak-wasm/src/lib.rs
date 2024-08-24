@@ -1,6 +1,5 @@
 use board_game_traits::Position as PositionTrait;
 use pgn_traits::PgnPosition;
-use std::env;
 use std::error::Error;
 use std::fmt::Display;
 use std::str::FromStr;
@@ -98,9 +97,19 @@ pub async fn tei<F>(mut input: mpsc::UnboundedReceiver<String>, output: F) -> Re
 where
     F: Fn(&str),
 {
-    let is_slatebot = env::args().any(|arg| arg == "--slatebot");
-
-    while input.recv().await.unwrap() != "tei" {}
+    loop {
+        let message = input.recv().await.unwrap();
+        if message == "tei" {
+            break;
+        }
+        web_sys::console::error_1(
+            &format!(
+                "Warning: Tiltak expected \"tei\" initialization message, received \"{}\"",
+                message
+            )
+            .into(),
+        );
+    }
 
     output("id name Tiltak");
     output("id author Morten Lohne");
@@ -114,7 +123,6 @@ where
 
     loop {
         let line = input.recv().await.unwrap();
-        output(&format!("Received line \"{}\"", line));
         let mut words = line.split_whitespace();
         match words.next().unwrap() {
             "quit" => break Ok(()),
@@ -184,7 +192,7 @@ where
                         &output,
                         &line,
                         position.as_ref().and_then(|p| p.downcast_ref()).unwrap(),
-                        is_slatebot,
+                        false,
                     )
                     .await?
                 }
@@ -194,7 +202,7 @@ where
                         &output,
                         &line,
                         position.as_ref().and_then(|p| p.downcast_ref()).unwrap(),
-                        is_slatebot,
+                        false,
                     )
                     .await?
                 }
@@ -204,7 +212,7 @@ where
                         &output,
                         &line,
                         position.as_ref().and_then(|p| p.downcast_ref()).unwrap(),
-                        is_slatebot,
+                        false,
                     )
                     .await?
                 }
@@ -220,8 +228,9 @@ where
                     ))
                 }
             },
-            "stop" => (),
-            s => return Err(TeiError::InvalidInput(format!("Unknown command \"{}\"", s))),
+            s => web_sys::console::error_1(
+                &format!("Warning: Tiltak received unexpected command \"{}\"", s).into(),
+            ),
         }
     }
 }
