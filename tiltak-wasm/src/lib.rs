@@ -296,7 +296,7 @@ where
                 u64::MAX
             };
             let start_time = js_sys::Date::now();
-            let mut tree = search::MonteCarloTree::with_settings(position.clone(), mcts_settings);
+            let mut tree = search::MonteCarloTree::new(position.clone(), mcts_settings);
 
             for i in 0.. {
                 let nodes_to_search = (1000.0 * f64::powf(1.1, i as f64)) as u64;
@@ -319,13 +319,12 @@ where
                             Err(TryRecvError::Disconnected) => return Err(TeiError::NoInput),
                         }
                     }
-                    if tree.select().is_none() {
-                        eprintln!("Warning: Search stopped early due to OOM");
+                    if let Err(_) = tree.select() {
                         exit = true;
                         break;
                     };
                 }
-                let (best_move, best_score) = tree.best_move();
+                let (best_move, best_score) = tree.best_move().unwrap();
                 let pv: Vec<_> = tree.pv().collect();
                 let elapsed = js_sys::Date::now() - start_time;
                 output(&format!(
