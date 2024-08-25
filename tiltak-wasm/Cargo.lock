@@ -395,7 +395,7 @@ dependencies = [
 
 [[package]]
 name = "tiltak-wasm"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "board-game-traits",
  "console_error_panic_hook",
