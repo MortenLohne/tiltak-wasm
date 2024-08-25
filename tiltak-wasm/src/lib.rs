@@ -228,6 +228,7 @@ where
                     ))
                 }
             },
+            "stop" => (),
             s => web_sys::console::error_1(
                 &format!("Warning: Tiltak received unexpected command \"{}\"", s).into(),
             ),
