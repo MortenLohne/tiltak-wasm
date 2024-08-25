@@ -299,7 +299,7 @@ where
             let mut tree = search::MonteCarloTree::new(position.clone(), mcts_settings);
 
             for i in 0.. {
-                let nodes_to_search = (1000.0 * f64::powf(1.1, i as f64)) as u64;
+                let nodes_to_search = (5000.0 * f64::powf(1.05, i as f64)) as u64;
                 let mut exit = false;
                 for _ in 0..nodes_to_search {
                     // Only yield to the Javascript event loop every 10k visits, since it's rather slow (5-10ms)
@@ -329,7 +329,7 @@ where
                 let elapsed = js_sys::Date::now() - start_time;
                 output(&format!(
                     "info depth {} seldepth {} nodes {} score cp {} time {} nps {:.0} pv {}",
-                    ((tree.visits() as f64 / 100.0).log2()) as u64,
+                    i + 1,
                     pv.len(),
                     tree.visits(),
                     (best_score * 200.0 - 100.0) as i64,
