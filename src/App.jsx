@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React, { useState } from 'react';
 import './App.css';
 import Worker from './calc.worker.js';
 
@@ -49,8 +49,8 @@ function App() {
 
   const initialize = () => {
     worker.postMessage("tei");
-    worker.postMessage("teinewgame 6");
     worker.postMessage("setoption name HalfKomi value 4");
+    worker.postMessage("teinewgame 6");
   }
 
   const [initialized, setInitialized] = useState(false);
@@ -158,8 +158,8 @@ function App() {
           value={inputValue}
           onChange={handleInputChange}></input>
         <div>
-        <button onClick={() => handleGo()}>Go</button>
-        <button onClick={() => worker.postMessage("stop")}>Stop</button>
+          <button onClick={() => handleGo()}>Go</button>
+          <button onClick={() => worker.postMessage("stop")}>Stop</button>
         </div>
         {pv[0] && <button onClick={() => goNextMove()}>{`Continue with ${pv[0]}`}</button>}
         {inputValue.includes("moves") && <button onClick={() => undoMove()}>{`Undo ${inputValue.slice(inputValue.lastIndexOf(" "))}`}</button>}
