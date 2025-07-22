@@ -17,9 +17,10 @@ crate-type = ["cdylib"]
 async-channel = "2.5.0"
 board-game-traits = "0.4.0"
 console_error_panic_hook = "0.1.7"
+dlmalloc = { git = "https://github.com/alexcrichton/dlmalloc-rs", features = ["global"] }
 getrandom = { version = "0.2.15", features = ["js"] }
 pgn-traits = "0.5.0"
-tiltak = { git = "https://github.com/MortenLohne/tiltak", branch = "remove-arena", default-features = false }
+tiltak = { git = "https://github.com/MortenLohne/tiltak", default-features = false }
 tokio = { version = "1.38.1", default-features=false, features = ["sync"] }
 wasm-bindgen = "0.2.92"
 wasm-bindgen-futures = "0.4.42"

@@ -6,6 +6,9 @@ use wasm_bindgen_futures::js_sys;
 
 use wasm_bindgen::prelude::*;
 
+#[global_allocator]
+static ALLOC: dlmalloc::GlobalDlmalloc = dlmalloc::GlobalDlmalloc;
+
 #[derive(Debug)]
 pub enum TeiError {
     NoInput,
@@ -82,7 +85,8 @@ pub fn start_engine(output_callback: js_sys::Function) -> JsValue {
 
     let rust_output_callback = Box::leak(Box::new(move |message: &str| {
         let args = js_sys::Array::new();
-        args.push(&message.into());
+        args.push(&JsValue::from_str(message));
+
         if let Err(err) = output_callback.apply(&JsValue::NULL, &args) {
             web_sys::console::error_2(
                 &"Tiltak: caught exception from Javascript callback: ".into(),
@@ -107,7 +111,7 @@ pub async fn tei_jsvalue<F>(
 where
     F: Fn(&str),
 {
-    let result = tiltak::tei::tei::<_, WebPlatform>(false, false, input, output).await;
+    let _result = tiltak::tei::tei::<_, WebPlatform>(false, false, input, output).await;
     // .map(|()| JsValue::UNDEFINED)
     // .map_err(|err| JsValue::from_str(&err.to_string()))
     Ok(JsValue::undefined())
