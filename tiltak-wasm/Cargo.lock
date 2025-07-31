@@ -157,8 +157,8 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "dlmalloc"
-version = "0.2.9"
-source = "git+https://github.com/alexcrichton/dlmalloc-rs#4dc8e4712f4016efb9efce46d8543f9ae06a3dad"
+version = "0.2.10"
+source = "git+https://github.com/alexcrichton/dlmalloc-rs#1463e22a64002db7a0d37ca7149a624309da99a1"
 dependencies = [
  "cfg-if",
  "libc",
@@ -435,9 +435,9 @@ dependencies = [
 
 [[package]]
 name = "rustc-demangle"
-version = "0.1.25"
+version = "0.1.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "989e6739f80c4ad5b13e0fd7fe89531180375b18520cc8c82080e4dc4035b84f"
+checksum = "56f7d92ca342cea22a06f2121d944b4fd82af56988c270852495420f961d4ace"
 
 [[package]]
 name = "rustversion"
@@ -484,7 +484,7 @@ dependencies = [
 [[package]]
 name = "tiltak"
 version = "0.1.0"
-source = "git+https://github.com/MortenLohne/tiltak#b3597ffd2a99f678d81c35c0c66e06c1ee4380a6"
+source = "git+https://github.com/MortenLohne/tiltak#532caa3f028848f7013cbaf4fd9f6e93ded8478d"
 dependencies = [
  "arrayvec",
  "async-channel",
@@ -520,9 +520,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.46.1"
+version = "1.47.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cc3a2344dafbe23a245241fe8b09735b521110d30fcefbbd5feb1797ca35d17"
+checksum = "43864ed400b6043a4757a25c7a64a8efde741aed79a056a2fb348a406701bb35"
 dependencies = [
  "backtrace",
  "io-uring",
